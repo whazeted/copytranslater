@@ -76,6 +76,7 @@ examples/
   tanstack-start-drizzle/
   tanstack-start-seo/
 docs/
+website/                Public documentation and project website deployed to GitHub Pages
 ```
 
 Do not require every consumer to install the whole monorepo. Provide a convenience package only after the individual package boundaries are stable.
@@ -863,6 +864,17 @@ Exit criterion: an existing MCP-capable agent can inspect context, find stale tr
 
 Exit criterion: a real project can migrate in, run in production, and upgrade native module format versions without data loss.
 
+### Milestone 7: README and GitHub-hosted website
+
+- Expand the root README with the project vision, feature overview, architecture summary, installation and quick-start instructions, supported integrations, development workflow, roadmap, contribution guidance, and links to deeper documentation.
+- Include a minimal working example and representative screenshots or diagrams so new users can evaluate and try CopyTranslater without first reading the full implementation plan.
+- Build a responsive, accessible public website from the repository's documentation and project examples.
+- Publish the website with GitHub Pages under a custom domain-ready configuration.
+- Add a GitHub Actions workflow that builds and deploys the website on changes to the default branch, with link checking and a production build check in CI.
+- Document how maintainers preview the website locally and how releases update versioned documentation.
+
+Exit criterion: a new user can understand, install, and run the basic example from the README, and the public documentation website is automatically deployed and verified through GitHub Pages.
+
 ## 18. Versioning and Migration Policy
 
 - Generated message modules contain a machine-readable, type-only `CopyTranslaterFormat` declaration.
@@ -890,6 +902,7 @@ The first stable release is successful when it can demonstrate all of the follow
 11. MCP inspection and mutation through an already-running agent.
 12. CLI and CI validation.
 13. No authoring or editing metadata in the production bundle.
+14. An expanded onboarding README and an automatically deployed GitHub Pages documentation website.
 
 ## 20. Decisions Already Made
 
