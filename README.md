@@ -1,10 +1,10 @@
 # CopyTranslater
 
-CopyTranslater is a local-first internationalization toolkit for TypeScript applications. This repository currently implements the plan's Milestone 0 native vertical slice: typed TypeScript message modules, semantic source revisions, deterministic synchronization and validation, a guarded module store, runtime helpers, and locale-plus-namespace loading.
+CopyTranslater is a local-first internationalization toolkit for TypeScript applications. The repository implements the native TypeScript toolchain and the Milestone 1 TanStack Start development integration: request-safe locale routing, preload/hydration helpers, explicit visible-message instrumentation, an in-context editor, and a guarded development-only Vite bridge.
 
 ## Try the slice
 
-Requires Node.js 20.19 or newer.
+Requires Node.js 22.12 or newer.
 
 ```sh
 npm install
@@ -13,7 +13,7 @@ npm run build
 npm run example
 ```
 
-The example is served by Vite and demonstrates both direct named imports and runtime locale/namespace loading. The TanStack Start middleware and editing overlay remain Milestone 1 work; the passive MCP server remains Milestone 2 work, as specified in [PLAN.md](./PLAN.md).
+The example is served by Vite and demonstrates direct named imports, runtime locale/namespace loading, locale-preserving URLs, visible-message inspection, source/target editing, review, source-staleness previews, and hot reload. Run it in development and choose **Inspect messages**. The passive MCP server remains Milestone 2 work, as specified in [PLAN.md](./PLAN.md).
 
 ## Start a project
 
@@ -40,8 +40,51 @@ Arbitrary calls, property access, statements, control flow, side effects, spread
 
 - `packages/copytranslater`: parser, fingerprints, deterministic writer, store, project analysis, and CLI.
 - `packages/runtime`: plural/select helpers, cached `Intl` formatters, locale state, and cached namespace loaders.
-- `packages/tanstack-start`: reserved Milestone 1 integration boundary.
+- `packages/tanstack-start`: request middleware, routing/preload helpers, React instrumentation, overlay, and Vite bridge.
 - `packages/mcp`: reserved Milestone 2 passive-server boundary.
-- `examples/tanstack-start-basic`: the native browser/bundle vertical slice that will receive the TanStack integration next.
+- `examples/tanstack-start-basic`: browser example for native messages and the development editing workflow.
 
-The test suite covers grammar acceptance/rejection, semantic and contract fingerprints, atomic write avoidance, state derivation, optimistic concurrency, compile-time `satisfies` contracts, static-import tree-shaking, and dynamic locale chunking.
+The test suite covers grammar acceptance/rejection, semantic and contract fingerprints, atomic write avoidance, state derivation, optimistic concurrency, compile-time `satisfies` contracts, request isolation, locale routing, hydration reuse, overlay interaction, guarded bridge writes, static-import tree-shaking, dynamic locale chunking, and production authoring-code removal.
+
+## TanStack Start integration
+
+Register the request middleware in `src/start.ts` and preload namespaces from route loaders. Each request owns its locale and namespace cache; no server request uses the runtime's browser-global locale state.
+
+```ts
+import { createStart } from "@tanstack/react-start";
+import { createCopyTranslaterMiddleware } from "@copytranslater/tanstack-start/middleware";
+
+const i18nMiddleware = createCopyTranslaterMiddleware({
+  sourceLocale: "en",
+  locales: ["en", "nl", "de"],
+  prefix: "all-except-source",
+  strategy: ["url", "cookie", "acceptLanguage", "sourceLocale"],
+});
+
+export const startInstance = createStart(() => ({
+  requestMiddleware: [i18nMiddleware],
+}));
+```
+
+Add the development bridge to Vite. The plugin applies only to the development server and rejects cross-origin requests; every mutation still passes through the bounded parser, expected-fingerprint check, configured message root, and atomic writer.
+
+```ts
+import { copyTranslater } from "@copytranslater/tanstack-start/vite";
+
+export default defineConfig({
+  plugins: [copyTranslater(), tanstackStart(), react()],
+});
+```
+
+Wrap visible text with `Localized` and load the overlay only in development:
+
+```tsx
+<Localized message={import.meta.env.DEV ? registration : undefined}>
+  {translatedValue}
+</Localized>
+
+if (import.meta.env.DEV) {
+  import("@copytranslater/tanstack-start/overlay")
+    .then(({ mountCopyTranslaterOverlay }) => mountCopyTranslaterOverlay());
+}
+```

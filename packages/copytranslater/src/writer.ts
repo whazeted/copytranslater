@@ -89,6 +89,33 @@ export function printUpdatedMessage(
   return `${printer.printFile(source).trimEnd()}\n`;
 }
 
+export function printUpdatedSourceMessage(
+  fileName: string,
+  text: string,
+  id: string,
+  functionText: string,
+  revisions: Record<string, string>,
+): string {
+  let source = updateInitializer(fileName, text, id, functionText);
+  source = replaceInterface(source, "SourceRevisions", revisions);
+  return `${printer.printFile(source).trimEnd()}\n`;
+}
+
+export function printAddedTranslationMessage(
+  fileName: string,
+  text: string,
+  id: string,
+  functionText: string,
+  basedOn: Record<string, string>,
+  reviewed: Record<string, string>,
+): string {
+  const addition = `\nexport const ${id} = (${functionText}) satisfies typeof Source.${id};\n`;
+  let source = ts.createSourceFile(fileName, `${text.trimEnd()}${addition}`, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  source = replaceInterface(source, "BasedOn", basedOn);
+  source = replaceInterface(source, "Reviewed", reviewed);
+  return `${printer.printFile(source).trimEnd()}\n`;
+}
+
 export async function atomicWrite(fileName: string, content: string): Promise<boolean> {
   await mkdir(path.dirname(fileName), { recursive: true });
   let current: string | undefined;

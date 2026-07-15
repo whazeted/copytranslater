@@ -1,7 +1,13 @@
 import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { copyTranslater } from "@copytranslater/tanstack-start/vite";
 
 export default defineConfig({
   root: import.meta.dirname,
+  plugins: [
+    copyTranslater({ root: import.meta.dirname }),
+    react(),
+  ],
   build: {
     manifest: true,
     outDir: "dist",

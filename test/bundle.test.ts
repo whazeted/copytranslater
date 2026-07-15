@@ -27,6 +27,8 @@ describe("production bundling", () => {
   it("emits target locale namespaces as dynamic chunks", async () => {
     const output = await build({
       configFile: path.resolve("examples/tanstack-start-basic/vite.config.ts"),
+      mode: "production",
+      define: { "import.meta.env.DEV": "false" },
       logLevel: "silent",
       build: { write: false, minify: false },
     }) as RollupOutput;
@@ -35,5 +37,10 @@ describe("production bundling", () => {
     expect(entry.dynamicImports.length).toBeGreaterThanOrEqual(2);
     expect(built.some((chunk) => chunk.code.includes("Rond je aankoop af"))).toBe(true);
     expect(built.some((chunk) => chunk.code.includes("Kauf abschließen"))).toBe(true);
+    const productionCode = built.map((chunk) => chunk.code).join("\n");
+    expect(productionCode).not.toContain("AUTHORING_SENTINEL");
+    expect(productionCode).not.toContain("Edit localized message");
+    expect(productionCode).not.toContain("/__copytranslater");
+    expect(productionCode).not.toContain("typescript-modules");
   });
 });

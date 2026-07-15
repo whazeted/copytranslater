@@ -1,6 +1,6 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "rootDir": "src", "outDir": "dist" },
-  "references": [{ "path": "../runtime" }],
-  "include": ["src/**/*.ts"]
+  "compilerOptions": { "rootDir": "src", "outDir": "dist", "jsx": "react-jsx" },
+  "references": [{ "path": "../runtime" }, { "path": "../copytranslater" }],
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
 }

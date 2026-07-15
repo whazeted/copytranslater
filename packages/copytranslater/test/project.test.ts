@@ -60,4 +60,27 @@ describe("project workflow", () => {
     await syncProject(directory);
     expect((await analyzeProject(directory)).messages[0]?.state).toBe("stale");
   });
+
+  it("updates source messages atomically and advances their revision", async () => {
+    const directory = await fixture();
+    const store = new TypeScriptModuleStore(directory);
+    const target = (await store.listMessages())[0]!;
+    const result = await store.updateMessage({
+      locale: "en",
+      namespace: target.ref.namespace,
+      id: target.ref.id,
+      functionText: "({ name }: { name: string }) => `Welcome, ${name}!`",
+      expectedSourceFingerprint: target.sourceFingerprint,
+    });
+    expect(result.changed).toBe(true);
+    const analysis = await analyzeProject(directory);
+    expect(analysis.diagnostics.some((item) => item.code === "unsynchronized")).toBe(false);
+    expect(analysis.messages[0]?.state).toBe("stale");
+  });
+
+  it("rejects source reads outside the configured locale directory", async () => {
+    const directory = await fixture();
+    const store = new TypeScriptModuleStore(directory);
+    await expect(store.getMessage({ locale: "en", namespace: "../nl/common", id: "greeting" })).rejects.toThrow(/Unsafe read target/);
+  });
 });

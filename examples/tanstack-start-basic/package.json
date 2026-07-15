@@ -9,6 +9,9 @@
   },
   "dependencies": {
     "@copytranslater/runtime": "0.1.0",
-    "copytranslater": "0.1.0"
+    "@copytranslater/tanstack-start": "0.1.0",
+    "copytranslater": "0.1.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
   }
 }

@@ -16,10 +16,18 @@
     "i18n": "node packages/copytranslater/dist/cli.js"
   },
   "engines": {
-    "node": ">=20.19"
+    "node": ">=22.12"
   },
   "devDependencies": {
+    "@tanstack/react-router": "1.170.18",
+    "@tanstack/react-start": "1.168.28",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.3",
     "@types/node": "26.1.1",
+    "jsdom": "27.3.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
     "typescript": "6.0.3",
     "vite": "8.1.4",
     "vitest": "4.1.10"

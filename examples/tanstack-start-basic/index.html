@@ -1,27 +1,13 @@
 <!doctype html>
-<html lang="nl">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="CopyTranslater native TypeScript message example" />
-    <title>CopyTranslater native slice</title>
-    <style>
-      :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
-      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #10201c; color: #eef7f2; }
-      main { width: min(36rem, calc(100% - 2rem)); padding: 2rem; border: 1px solid #4f7467; border-radius: 1rem; background: #172b25; }
-      label { display: grid; gap: .5rem; margin-block: 1.5rem; }
-      select, button { font: inherit; padding: .7rem 1rem; border-radius: .5rem; }
-      button { border: 0; background: #7ee2b8; color: #10201c; font-weight: 700; }
-      code { color: #9ee7c8; }
-    </style>
-    <script type="module" src="/src/main.ts"></script>
+    <meta name="description" content="CopyTranslater TanStack integration example" />
+    <title>CopyTranslater</title>
+    <script type="module" src="/src/main.tsx"></script>
   </head>
   <body>
-    <main>
-      <p><code>static import</code>: <span id="source-message"></span></p>
-      <h1>Native TypeScript messages</h1>
-      <label for="locale">Active locale <select id="locale"><option value="nl">Nederlands</option><option value="de">Deutsch</option><option value="en">English</option></select></label>
-      <section id="messages" aria-live="polite"></section>
-    </main>
+    <div id="root"></div>
   </body>
 </html>
