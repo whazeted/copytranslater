@@ -17,6 +17,16 @@ function nameOf(name: ts.PropertyName): string {
   return fail(name, "Computed property names are not supported");
 }
 
+function literalOptionValue(expression: ts.Expression): string | number | boolean | null | undefined {
+  expression = unwrapExpression(expression);
+  if (ts.isStringLiteral(expression) || ts.isNoSubstitutionTemplateLiteral(expression)) return expression.text;
+  if (ts.isNumericLiteral(expression)) return Number(expression.text);
+  if (expression.kind === ts.SyntaxKind.TrueKeyword) return true;
+  if (expression.kind === ts.SyntaxKind.FalseKeyword) return false;
+  if (expression.kind === ts.SyntaxKind.NullKeyword) return null;
+  return undefined;
+}
+
 function unwrapExpression(expression: ts.Expression): ts.Expression {
   while (
     ts.isParenthesizedExpression(expression) ||
@@ -64,9 +74,13 @@ function canonicalExpression(input: ts.Expression, scope: Scope, contract: boole
     ];
   }
   if (ts.isObjectLiteralExpression(expression)) {
+    const seen = new Set<string>();
     const properties = expression.properties.map((property) => {
       if (!ts.isPropertyAssignment(property)) return fail(property, "Only object property assignments are supported");
-      return [nameOf(property.name), canonicalExpression(property.initializer, scope, contract)];
+      const name = nameOf(property.name);
+      if (seen.has(name)) return fail(property.name, `Duplicate object property ${name}`);
+      seen.add(name);
+      return [name, canonicalExpression(property.initializer, scope, contract)];
     });
     properties.sort((a, b) => String(a[0]).localeCompare(String(b[0])));
     return ["object", ...properties];
@@ -106,6 +120,36 @@ function canonicalExpression(input: ts.Expression, scope: Scope, contract: boole
         return key;
       });
       if (!keys.includes("other")) return fail(variants, "Plural variants require other");
+    }
+    if (helper === "select") {
+      const variants = unwrapExpression(expression.arguments[1]!);
+      if (!ts.isObjectLiteralExpression(variants)) return fail(variants, "select variants must be an object literal");
+      const keys = variants.properties.map((property) => {
+        if (!ts.isPropertyAssignment(property)) return fail(property, "Select variants must be property assignments");
+        return nameOf(property.name);
+      });
+      if (!keys.includes("other")) return fail(variants, "Select variants require other");
+    }
+    if (helper.startsWith("format") && expression.arguments[1]) {
+      const options = unwrapExpression(expression.arguments[1]);
+      if (!ts.isObjectLiteralExpression(options)) return fail(options, `${helper} options must be an object literal`);
+      const optionValues: Record<string, string | number | boolean | null> = {};
+      for (const property of options.properties) {
+        if (!ts.isPropertyAssignment(property)) return fail(property, `${helper} options must be property assignments`);
+        const value = unwrapExpression(property.initializer);
+        if (!(ts.isStringLiteral(value) || ts.isNoSubstitutionTemplateLiteral(value) || ts.isNumericLiteral(value) ||
+          value.kind === ts.SyntaxKind.TrueKeyword || value.kind === ts.SyntaxKind.FalseKeyword || value.kind === ts.SyntaxKind.NullKeyword)) {
+          return fail(value, `${helper} option values must be literals`);
+        }
+        optionValues[nameOf(property.name)] = literalOptionValue(value)!;
+      }
+      try {
+        if (helper === "formatNumber") new Intl.NumberFormat("en", optionValues as Intl.NumberFormatOptions);
+        else if (helper === "formatDateTime") new Intl.DateTimeFormat("en", optionValues as Intl.DateTimeFormatOptions);
+        else new Intl.ListFormat("en", optionValues as Intl.ListFormatOptions);
+      } catch (error) {
+        return fail(options, `Invalid ${helper} options: ${error instanceof Error ? error.message : "unsupported options"}`);
+      }
     }
     return ["call", helper, ...expression.arguments.map((argument) => canonicalExpression(argument, scope, contract))];
   }
@@ -227,8 +271,20 @@ export function parseModuleText(fileName: string, text: string): ParsedModule {
 }
 
 export function parseFunctionText(id: string, functionText: string): ParsedMessage {
-  const source = ts.createSourceFile("update.ts", `const ${id} = ${functionText};`, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
-  const declaration = (source.statements[0] as ts.VariableStatement | undefined)?.declarationList.declarations[0];
+  const source = ts.createSourceFile("update.ts", `const ${id} = (${functionText});`, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const syntax = (source as ts.SourceFile & { parseDiagnostics: readonly ts.DiagnosticWithLocation[] }).parseDiagnostics;
+  const statement = source.statements[0];
+  if (syntax.length || source.statements.length !== 1 || !statement || !ts.isVariableStatement(statement) || statement.declarationList.declarations.length !== 1) {
+    throw new Error("Update must contain exactly one valid function expression");
+  }
+  const declaration = statement.declarationList.declarations[0];
   if (!declaration?.initializer) throw new Error("Update is not a valid function expression");
   return parseMessageFunction(id, declaration.initializer);
+}
+
+export function isEmptyMessage(message: ParsedMessage): boolean {
+  const canonical = message.canonical;
+  if (!Array.isArray(canonical) || canonical[0] !== "function") return false;
+  const body = canonical[2];
+  return Array.isArray(body) && body[0] === "text" && body[1] === "";
 }

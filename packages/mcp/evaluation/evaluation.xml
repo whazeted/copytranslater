@@ -1,0 +1,42 @@
+<evaluation>
+  <qa_pair>
+    <question>Confirm the example project's configured translation policy and then validate the whole project. What single word is the configured missing-translation policy?</question>
+    <answer>error</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Inspect the full coverage report, then verify the matching messages through paginated search. Which workflow state has exactly eight messages?</question>
+    <answer>current</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Compare namespace-specific reports and confirm their entries with message search. Which namespace has the fewest target messages?</question>
+    <answer>common</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Find every reviewed message, inspect each in detail, and compare its source context. What numeric maximum-length value do the reviewed messages share?</question>
+    <answer>40</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Find the reviewed checkout action in both target locales and inspect both message details. What exact source fingerprint do they share?</question>
+    <answer>sha256:764572e1b36f40d7675aff16ab22e5f007a416d4efc998222ccc7a18249bfac2</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Search for checkout messages that format a monetary value, inspect both locale variants, and identify the shared three-letter currency code.</question>
+    <answer>EUR</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Locate the message whose source exists to test unused-export removal, then inspect its German target. What is the complete German target literal?</question>
+    <answer>UNBENUTZT</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Read the project locales, use the report to confirm which ones have target messages, and exclude the source locale. How many target locales are there?</question>
+    <answer>2</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Validate the complete project, then compare the result with the diagnostic totals in the coverage report. How many validation errors are present?</question>
+    <answer>0</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Inspect both the server capability and the TypeScript store capability reported by the default evaluation server. Is effective write access enabled? Answer true or false.</question>
+    <answer>false</answer>
+  </qa_pair>
+</evaluation>

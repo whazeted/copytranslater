@@ -1,7 +1,12 @@
 export { defineI18n, loadConfig } from "./config.js";
 export { initializeProject } from "./init.js";
-export { parseFunctionText, parseMessageFunction, parseModuleText } from "./parser.js";
+export { recoverSourceRevision } from "./history.js";
+export type { RecoveredSourceRevision } from "./history.js";
+export { exportIcu, exportJson, icuToFunction, importIcu, importJson, messageToIcu } from "./interchange.js";
+export type { ImportResult, JsonInterchangeDocument, JsonInterchangeMessage } from "./interchange.js";
+export { isEmptyMessage, parseFunctionText, parseMessageFunction, parseModuleText } from "./parser.js";
 export { analyzeProject, reportDiagnostics, syncProject } from "./project.js";
 export { TypeScriptModuleStore } from "./store.js";
+export { assertConfiguredRef, assertValidLocale, assertValidMessageId, assertValidNamespace, resolveMessageModule } from "./security.js";
 export { atomicWrite, printAddedTranslationMessage, printUpdatedMessage, printUpdatedSourceMessage, printWithInterfaces } from "./writer.js";
 export type * from "./types.js";

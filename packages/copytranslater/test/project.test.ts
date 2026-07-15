@@ -81,6 +81,6 @@ describe("project workflow", () => {
   it("rejects source reads outside the configured locale directory", async () => {
     const directory = await fixture();
     const store = new TypeScriptModuleStore(directory);
-    await expect(store.getMessage({ locale: "en", namespace: "../nl/common", id: "greeting" })).rejects.toThrow(/Unsafe read target/);
+    await expect(store.getMessage({ locale: "en", namespace: "../nl/common", id: "greeting" })).rejects.toThrow(/Invalid namespace/);
   });
 });

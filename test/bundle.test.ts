@@ -42,5 +42,6 @@ describe("production bundling", () => {
     expect(productionCode).not.toContain("Edit localized message");
     expect(productionCode).not.toContain("/__copytranslater");
     expect(productionCode).not.toContain("typescript-modules");
+    expect(productionCode).not.toContain("copytranslater-mcp-server");
   });
 });

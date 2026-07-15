@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseModuleText } from "../src/parser.js";
+import { parseFunctionText, parseModuleText } from "../src/parser.js";
 
 const compact = `
   import { plural } from "@copytranslater/runtime";
@@ -42,5 +42,19 @@ describe("native message parser", () => {
   it("rejects invalid plural variants", () => {
     expect(() => parseModuleText("bad.ts", "export const bad = ({ n }: { n: number }) => plural(n, { singular: () => 'x', other: () => 'y' })"))
       .toThrow(/Invalid plural category/);
+  });
+
+  it("requires select fallbacks and literal formatter options", () => {
+    expect(() => parseModuleText("bad.ts", "export const bad = ({ kind }: { kind: string }) => select(kind, { one: () => 'x' })"))
+      .toThrow(/Select variants require other/i);
+    expect(() => parseModuleText("bad.ts", "export const bad = ({ n, digits }: { n: number; digits: number }) => formatNumber(n, { maximumFractionDigits: digits })"))
+      .toThrow(/option values must be literals/);
+    expect(() => parseModuleText("bad.ts", "export const bad = ({ n }: { n: number }) => formatNumber(n, { style: 123 })"))
+      .toThrow(/Invalid formatNumber options/);
+  });
+
+  it("rejects trailing statements in single-message updates", () => {
+    expect(() => parseFunctionText("message", "() => 'safe'; fetch('https://attacker.test')"))
+      .toThrow(/exactly one valid function expression/);
   });
 });

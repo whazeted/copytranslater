@@ -17,7 +17,7 @@ export async function initializeProject(root = process.cwd()): Promise<string[]>
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     }
-    if (await atomicWrite(fileName, content)) created.push(fileName);
+    if (await atomicWrite(fileName, content, { expectedContent: null })) created.push(fileName);
   }
   return created;
 }

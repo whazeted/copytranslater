@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import ts from "typescript";
 import type { I18nConfig, Policy } from "./types.js";
+import { assertValidLocale } from "./security.js";
 
 export function defineI18n<const T extends I18nConfig>(config: T): T {
   return config;
@@ -64,6 +65,7 @@ export async function loadConfig(root = process.cwd()): Promise<{ config: I18nCo
     return value;
   });
   const sourceLocale = readString("sourceLocale");
+  for (const locale of locales) assertValidLocale(locale);
   if (!locales.includes(sourceLocale)) throw new Error("locales must include sourceLocale");
   if (new Set(locales).size !== locales.length) throw new Error("locales contains duplicates");
   const policy = (name: string): Policy => {

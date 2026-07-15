@@ -1,9 +1,10 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { loadConfig } from "./config.js";
-import { parseModuleText } from "./parser.js";
+import { isEmptyMessage, parseModuleText } from "./parser.js";
+import { resolveMessageModule } from "./security.js";
 import type { Diagnostic, I18nConfig, LocalizedMessage, MessageQuery } from "./types.js";
-import { atomicWrite, printWithInterfaces } from "./writer.js";
+import { atomicWrite, printWithInterfaces, withWriteLock } from "./writer.js";
 
 export interface ProjectAnalysis {
   root: string;
@@ -35,7 +36,12 @@ export async function analyzeProject(root = process.cwd(), query: MessageQuery =
   for (const sourceFile of sourceFiles) {
     const namespace = sourceFile.slice(0, -3);
     if (query.namespace && query.namespace !== namespace) continue;
-    const sourcePath = path.join(sourceDirectory, sourceFile);
+    let sourcePath: string;
+    try { sourcePath = await resolveMessageModule(messagesRoot, config.sourceLocale, namespace); }
+    catch (error) {
+      diagnostics.push({ code: "unsafe", severity: "error", message: error instanceof Error ? error.message : "Unsafe source module" });
+      continue;
+    }
     let source;
     try { source = parseModuleText(sourcePath, await readFile(sourcePath, "utf8")); }
     catch (error) {
@@ -43,6 +49,9 @@ export async function analyzeProject(root = process.cwd(), query: MessageQuery =
       continue;
     }
     for (const sourceMessage of source.messages.values()) {
+      if (isEmptyMessage(sourceMessage)) {
+        diagnostics.push({ code: "empty", severity: "error", message: `${namespace}.${sourceMessage.id} source is empty`, ref: { locale: config.sourceLocale, namespace, id: sourceMessage.id } });
+      }
       if (source.revisions[sourceMessage.id] !== sourceMessage.semanticFingerprint) {
         diagnostics.push({
           code: "unsynchronized",
@@ -55,7 +64,12 @@ export async function analyzeProject(root = process.cwd(), query: MessageQuery =
 
     for (const locale of config.locales) {
       if (locale === config.sourceLocale || (query.locale && query.locale !== locale)) continue;
-      const targetPath = path.join(messagesRoot, locale, sourceFile);
+      let targetPath: string;
+      try { targetPath = await resolveMessageModule(messagesRoot, locale, namespace); }
+      catch (error) {
+        diagnostics.push({ code: "unsafe", severity: "error", message: error instanceof Error ? error.message : "Unsafe target module" });
+        continue;
+      }
       let target: ReturnType<typeof parseModuleText> | undefined;
       if (await exists(targetPath)) {
         try { target = parseModuleText(targetPath, await readFile(targetPath, "utf8")); }
@@ -81,6 +95,9 @@ export async function analyzeProject(root = process.cwd(), query: MessageQuery =
         } else if (state === "stale") {
           diagnostics.push({ code: "stale", severity: config.staleTranslations === "warning" ? "warning" : "error", message: `${locale}/${namespace}.${sourceMessage.id} is stale`, ref });
         }
+        if (targetMessage && isEmptyMessage(targetMessage)) {
+          diagnostics.push({ code: "empty", severity: "error", message: `${locale}/${namespace}.${sourceMessage.id} is empty`, ref });
+        }
         const localized: LocalizedMessage = {
           ref,
           state,
@@ -92,7 +109,7 @@ export async function analyzeProject(root = process.cwd(), query: MessageQuery =
         if (targetMessage) localized.target = targetMessage;
         const context = source.context[sourceMessage.id];
         if (context) localized.context = context;
-        if (!query.state || query.state === state) messages.push(localized);
+        messages.push(localized);
       }
       for (const orphan of target?.messages.values() ?? []) {
         if (source.messages.has(orphan.id)) continue;
@@ -105,12 +122,22 @@ export async function analyzeProject(root = process.cwd(), query: MessageQuery =
       }
     }
   }
-  return { root, config, messagesRoot, messages, diagnostics };
+  const filteredMessages = messages.filter((message) => {
+    if (query.state && query.state !== message.state) return false;
+    if (!query.diagnostic) return true;
+    return diagnostics.some((diagnostic) => diagnostic.code === query.diagnostic && diagnostic.ref &&
+      diagnostic.ref.locale === message.ref.locale && diagnostic.ref.namespace === message.ref.namespace && diagnostic.ref.id === message.ref.id);
+  });
+  return { root, config, messagesRoot, messages: filteredMessages, diagnostics };
 }
 
 export async function syncProject(root = process.cwd()): Promise<{ changed: string[] }> {
   const { config } = await loadConfig(root);
   const messagesRoot = path.resolve(root, config.messages);
+  return withWriteLock(path.join(messagesRoot, ".copytranslater-project"), async () => syncProjectLocked(config, messagesRoot));
+}
+
+async function syncProjectLocked(config: I18nConfig, messagesRoot: string): Promise<{ changed: string[] }> {
   const sourceDirectory = path.join(messagesRoot, config.sourceLocale);
   const sourceFiles = (await readdir(sourceDirectory, { withFileTypes: true }))
     .filter((entry) => entry.isFile() && entry.name.endsWith(".ts"))
@@ -118,11 +145,12 @@ export async function syncProject(root = process.cwd()): Promise<{ changed: stri
     .sort();
   const changed: string[] = [];
   for (const sourceFile of sourceFiles) {
-    const fileName = path.join(sourceDirectory, sourceFile);
+    const namespace = sourceFile.slice(0, -3);
+    const fileName = await resolveMessageModule(messagesRoot, config.sourceLocale, namespace);
     const text = await readFile(fileName, "utf8");
     const parsed = parseModuleText(fileName, text);
     const revisions = Object.fromEntries([...parsed.messages.values()].map((message) => [message.id, message.semanticFingerprint]));
-    if (await atomicWrite(fileName, printWithInterfaces(fileName, text, { SourceRevisions: revisions }))) changed.push(fileName);
+    if (await atomicWrite(fileName, printWithInterfaces(fileName, text, { SourceRevisions: revisions }), { expectedContent: text })) changed.push(fileName);
   }
   return { changed };
 }

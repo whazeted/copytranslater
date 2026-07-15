@@ -32,7 +32,7 @@ export interface ParsedModule {
 }
 
 export interface Diagnostic {
-  code: "invalid" | "unsynchronized" | "missing" | "stale" | "orphan" | "unsafe";
+  code: "invalid" | "unsynchronized" | "missing" | "empty" | "stale" | "orphan" | "unsafe";
   severity: "error" | "warning";
   message: string;
   ref?: MessageRef;
@@ -53,11 +53,13 @@ export interface MessageQuery {
   locale?: string;
   namespace?: string;
   state?: WorkflowState;
+  diagnostic?: Diagnostic["code"];
 }
 
 export interface UpdateMessageInput extends MessageRef {
   functionText: string;
   expectedSourceFingerprint: string;
+  expectedTargetFingerprint?: string | null;
   review?: boolean;
 }
 
