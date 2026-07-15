@@ -4,39 +4,39 @@
 
 CopyTranslater is a local-first, open-source internationalization toolkit for web applications. It combines:
 
-- A compiler that generates typed, tree-shakable, code-splittable message functions.
+- A TypeScript source generator that writes typed, tree-shakable, code-splittable message functions directly into the application source tree.
 - A development overlay for editing visible text and hidden localized content in context.
-- A versioned native catalog that tracks translation synchronization against a base locale.
+- Native TypeScript message modules that track every translation against an exact semantic revision of the source locale.
 - Ordered locale detection and localized routing inspired by Paraglide's middleware model.
 - First-class localization of Drizzle-managed database content.
 - A passive MCP server that lets an existing coding agent inspect and modify localization data using the user's existing agent/model subscription.
 
-The tool must remain useful without an agent. Manual editing, compilation, validation, routing, and database localization are deterministic core features; MCP adds agent-driven automation on top.
+The tool must remain useful without an agent. Manual editing, source generation, validation, routing, and database localization are deterministic core features; MCP adds agent-driven automation on top.
 
 ## 2. Product Principles
 
 1. **Local first**: no account, hosted service, or network connection is required for core functionality.
-2. **Open and portable**: catalogs use documented schemas and can be imported from or exported to common ecosystems.
-3. **Git friendly**: deterministic formatting, stable ordering, minimal generated churn, and mergeable files.
+2. **Open and portable**: generated message modules follow documented TypeScript conventions and can be imported from or exported to common ecosystems.
+3. **Git friendly**: deterministic source generation, stable ordering, minimal generated churn, and ordinary text merges.
 4. **Base locale as source of truth**: every translation records the base revision from which it was produced.
 5. **Context at the point of editing**: translators can see the original, target, source change, page context, and metadata together.
 6. **Safe writes**: every writable file, database resource, route, or metadata field is explicitly configured and validated.
 7. **Fast production runtime**: authoring metadata stays out of production bundles.
-8. **Framework-neutral core**: TanStack Start is the first reference integration, not a hard dependency of the storage or compiler layers.
+8. **Framework-neutral core**: TanStack Start is the first reference integration, not a hard dependency of source generation or runtime modules.
 9. **MCP is passive**: the server exposes tools and resources; it cannot initiate an agent turn or push a prompt to an agent.
-10. **No unnecessary reinvention**: own the storage envelope and compiler while initially using ICU-compatible message grammar and platform `Intl` behavior.
+10. **No unnecessary reinvention**: own the generated TypeScript conventions while accepting ICU-compatible input and using platform `Intl` behavior.
 
 ## 3. Scope
 
 ### Initial scope
 
-- TypeScript and modern JavaScript projects.
+- TypeScript-capable web build pipelines, including JavaScript applications whose bundler accepts generated TypeScript modules.
 - TanStack Start reference integration.
 - Visible UI messages, SEO metadata, accessibility text, image alt text, and localized routes.
-- File-backed catalogs using the native CopyTranslater format.
+- TypeScript-backed source and translation modules using the native CopyTranslater conventions.
 - Drizzle-backed localized database fields.
 - Development-only browser overlay.
-- CLI, compiler, middleware, validation, and MCP server.
+- CLI, TypeScript source generator, middleware, validation, and MCP server.
 - ICU-style variables, plurals, selects, rich-text placeholders, and locale-aware formatting.
 
 ### Explicit initial non-goals
@@ -57,8 +57,8 @@ Use a monorepo so the deterministic core, framework integrations, and developmen
 ```text
 packages/
   core/                 Shared domain model, hashing, validation, store contracts
-  catalog/              Native JSON catalog reader/writer and JSON Schemas
-  compiler/             Typed ESM code generation
+  source/               TypeScript module inspection and canonical conventions
+  generator/            TypeScript Compiler API source generation and updates
   runtime/              Locale context, formatters, loaders, fallbacks
   routing/              Locale strategies, URL localization, middleware
   drizzle/              Drizzle storage adapter and helpers
@@ -80,105 +80,149 @@ docs/
 
 Do not require every consumer to install the whole monorepo. Provide a convenience package only after the individual package boundaries are stable.
 
-## 5. Native Storage Format
+## 5. Native TypeScript Message Format
 
 ### 5.1 Files
 
 ```text
+i18n.config.ts
 i18n/
-  project.json
-  routes.i18n.json
-  catalogs/
-    common.i18n.json
-    checkout.i18n.json
-    seo.i18n.json
-  generated/
-    runtime.ts
-    messages/
-    locales/
+  messages/
+    en/
+      common.ts
+      checkout.ts
+      seo.ts
+    nl/
+      common.ts
+      checkout.ts
+      seo.ts
+    de/
+      common.ts
+      checkout.ts
+      seo.ts
+  loaders.ts
+  runtime.ts
+  routes.ts
 ```
 
-`generated/` may be committed or ignored. Generation must be deterministic either way.
+The files under `i18n/messages/` are committed canonical source, not an intermediate catalog or disposable build artifact. CopyTranslater writes ordinary TypeScript modules that the application's existing TypeScript and bundler pipeline consumes directly.
 
-### 5.2 Project manifest
+### 5.2 Configuration
 
-```json
-{
-  "$schema": "https://copytranslater.dev/schema/project-v1.json",
-  "version": 1,
-  "sourceLocale": "en",
-  "locales": ["en", "nl", "de"],
-  "messageFormat": "icu-v1",
-  "catalogs": ["./catalogs/*.i18n.json"],
-  "routes": "./routes.i18n.json"
+```ts
+export default defineI18n({
+  sourceLocale: "en",
+  locales: ["en", "nl", "de"],
+  messages: "./i18n/messages",
+  routes: "./i18n/routes.ts",
+  staleTranslations: "error",
+  missingTranslations: "error",
+});
+```
+
+Configuration, runtime functions, database handles, custom locale strategies, and framework objects live in `i18n.config.ts`. There is no separate JSON project manifest.
+
+### 5.3 Source-locale modules
+
+Each namespace is a native ESM module. Message values are executable, typed functions. Source revisions and authoring metadata are represented with type-only declarations so TypeScript erases them from production JavaScript.
+
+```ts
+import { plural } from "@copytranslater/runtime";
+
+export type CopyTranslaterFormat = 1;
+
+export interface SourceRevisions {
+  completePurchase: "sha256:2d5c...";
+  basketItems: "sha256:a819...";
 }
-```
 
-The manifest contains serializable project data. Runtime functions, database handles, custom locale strategies, and framework objects belong in `i18n.config.ts`.
-
-### 5.3 Message-centric catalog
-
-The catalog keeps a message's source, translations, synchronization data, and translator context together.
-
-```json
-{
-  "$schema": "https://copytranslater.dev/schema/catalog-v1.json",
-  "version": 1,
-  "namespace": "checkout",
-  "messages": {
-    "completePurchase": {
-      "source": {
-        "value": "Complete your purchase",
-        "revision": 7,
-        "fingerprint": "sha256:2d5c..."
-      },
-      "sourceHistory": {
-        "6": {
-          "value": "Complete purchase",
-          "fingerprint": "sha256:96af..."
-        }
-      },
-      "translations": {
-        "nl": {
-          "value": "Rond je aankoop af",
-          "sourceRevision": 6,
-          "sourceFingerprint": "sha256:96af...",
-          "reviewedRevision": 6
-        }
-      },
-      "context": {
-        "description": "Primary checkout submit button",
-        "tags": ["checkout", "button"],
-        "maxLength": 40,
-        "sourceLocations": [
-          {
-            "file": "src/routes/checkout.tsx",
-            "line": 42
-          }
-        ]
-      }
-    }
-  }
+export interface MessageContext {
+  completePurchase: {
+    description: "Primary checkout submit button";
+    tags: readonly ["checkout", "button"];
+    maxLength: 40;
+    sourceLocations: readonly [{
+      file: "src/routes/checkout.tsx";
+      line: 42;
+    }];
+  };
 }
+
+export const completePurchase = () =>
+  "Complete your purchase";
+
+export const basketItems = ({ count }: { count: number }) =>
+  plural(count, {
+    one: () => "1 item",
+    other: () => `${count} items`,
+  });
 ```
 
-### 5.4 Derived status
+The generated function body is the canonical semantic message representation. Simple messages generate as literal-returning functions; plurals, selects, rich text, and formatting generate as direct expressions plus small tree-shakable runtime helpers.
 
-Do not persist a redundant status field. Derive it from the source and translation records:
+### 5.4 Translation modules
 
-- `missing`: target translation does not exist.
-- `stale`: `sourceFingerprint` differs from the current base fingerprint.
-- `reviewed`: translation points to the current source and `reviewedRevision` equals the current source revision.
-- `current`: translation points to the current source but has not been reviewed.
-- `orphaned`: translation remains after the source message is removed.
-- `base-fallback`: runtime displays the source because the target is unavailable.
-- `intentionally-unchanged`: translator explicitly acknowledges a source change without changing the target value.
+Translations use the same named exports as the source namespace. `BasedOn` records the exact semantic source fingerprint used to produce each translation. Function signatures are checked against the source module.
 
-Represent intentional acknowledgement explicitly rather than overloading review metadata.
+```ts
+import type * as Source from "../en/checkout";
+import type { Assert, Equal } from "@copytranslater/runtime/types";
+import { plural } from "@copytranslater/runtime";
 
-### 5.5 Fingerprints
+export type CopyTranslaterFormat = 1;
 
-Create fingerprints from a canonical semantic message representation containing:
+export interface BasedOn {
+  completePurchase: "sha256:2d5c...";
+  basketItems: "sha256:91ab...";
+}
+
+export interface Reviewed {
+  completePurchase: "sha256:2d5c...";
+}
+
+type __STALE_nl_basketItems = Assert<Equal<
+  BasedOn["basketItems"],
+  Source.SourceRevisions["basketItems"]
+>>;
+// Intentionally fails semantic TypeScript checking while this translation is stale.
+
+export const completePurchase =
+  (() => "Rond je aankoop af")
+  satisfies typeof Source.completePurchase;
+
+export const basketItems =
+  (({ count }) => plural(count, {
+    one: () => "1 artikel",
+    other: () => `${count} artikelen`,
+  })) satisfies typeof Source.basketItems;
+```
+
+According to project policy, the generator emits per-message type assertions for stale translations and namespace-level assertions for missing translations. A normal semantic TypeScript check such as `tsc --noEmit` therefore produces build errors without a CopyTranslater compilation phase. Bundlers that only strip TypeScript must run typechecking as a separate build or CI step.
+
+Policies are explicit:
+
+- `error`: emit a failing type assertion and fail semantic TypeScript checking.
+- `warning`: omit the failing assertion but report the condition through devtools, CLI, and CI annotations.
+- `allow`: retain the derived status without failing or warning.
+
+Function-contract incompatibilities remain TypeScript errors through `satisfies` regardless of wording-staleness policy.
+
+### 5.5 Derived status
+
+Do not persist a redundant status field. Derive it from module declarations:
+
+- `missing`: the target module has no matching message export.
+- `stale`: `BasedOn` differs from the current `SourceRevisions` fingerprint.
+- `reviewed`: `Reviewed` equals both `BasedOn` and the current source fingerprint.
+- `current`: `BasedOn` equals the current source fingerprint but `Reviewed` does not.
+- `incompatible`: the translation function no longer satisfies the source function contract or its canonical message shape changed.
+- `orphaned`: a target export remains after the source export is removed.
+- `base-fallback`: runtime displays the source because the target export is unavailable.
+- `intentionally-unchanged`: the target value is unchanged but `BasedOn` explicitly advances to the current source fingerprint.
+
+### 5.6 Semantic fingerprints
+
+Create fingerprints from a canonical representation of the generated message AST containing:
 
 - Literal text.
 - Variable names and types.
@@ -186,33 +230,43 @@ Create fingerprints from a canonical semantic message representation containing:
 - Rich-text placeholders.
 - Formatter configuration.
 
-Exclude JSON formatting, property order, source line numbers, descriptions, screenshots, and tags. Track context separately with an optional `contextFingerprint` so context changes can produce warnings without making content stale.
+Exclude TypeScript formatting, declaration order, source line numbers, descriptions, screenshots, and tags. Track context separately with an optional `contextFingerprint` so context changes can produce warnings without making content stale.
 
-### 5.6 Source history
+Use a second contract or shape fingerprint internally to distinguish a wording change from an incompatible parameter, plural, select, or rich-text change. Exact source synchronization is still based on the full semantic fingerprint rather than subjective major/minor/patch labels.
 
-- Retain every source revision referenced by an existing translation.
-- Retain a configurable number of recent unreferenced revisions.
-- Use Git as the complete audit history for file-backed catalogs.
-- Provide a compaction command that removes old, unreferenced revisions.
-- Avoid timestamps and usernames in Git-backed catalogs by default to reduce diff noise.
+### 5.7 Source history
 
-### 5.7 Direct manual edits
+- Use Git as the complete audit history of generated TypeScript modules.
+- Retain every previous source value still referenced by a translation in an optional type-only `SourceHistory` declaration.
+- Retain a configurable number of recent unreferenced revisions when richer local diffs are desired.
+- Provide a compaction command that removes old, unreferenced type-only history entries.
+- Avoid timestamps and usernames in generated modules by default to reduce diff noise.
 
-Developers must be able to edit catalog JSON without the overlay.
+### 5.8 Source generation and direct edits
+
+Use the TypeScript Compiler API directly for all native module generation and updates:
+
+- Parse modules with `ts.createSourceFile`.
+- Create and update declarations with `ts.factory`.
+- Emit deterministic modules with `ts.Printer`.
+- Never use string concatenation for message expressions or type declarations.
+- Write atomically and do not rewrite byte-identical files.
+
+Dedicated message modules are owned by CopyTranslater, but developers may edit their generated function bodies directly when they preserve the supported module conventions.
 
 On `dev`, `build`, or `validate`:
 
-1. Parse and canonicalize the source message.
-2. Recalculate its fingerprint.
-3. Detect a fingerprint mismatch without a revision change.
+1. Parse and canonicalize each message function AST.
+2. Recalculate its semantic and contract fingerprints.
+3. Detect a fingerprint mismatch without a corresponding `SourceRevisions` update.
 4. Report an unrecorded source change.
-5. Allow `i18n reconcile` to create the next source revision and retain the previous source.
+5. Allow `i18n reconcile` to update the source fingerprint and retain the previous source value when required.
 
-Development may offer safe automatic reconciliation with a visible notification. CI should reject unreconciled history changes.
+Development may offer safe automatic reconciliation with a visible notification. CI rejects unreconciled source changes and applies the configured missing/stale translation policy.
 
 ## 6. Shared Domain and Store Model
 
-All storage adapters implement a common logical model. File catalogs and Drizzle remain separate physical stores rather than duplicating database content into JSON.
+All storage adapters implement a common logical model. Native TypeScript message modules and Drizzle-managed application content remain separate physical stores. The shared model lets the overlay, CLI, and MCP treat them consistently without copying database content into source modules.
 
 ```ts
 interface LocalizationStore {
@@ -237,34 +291,33 @@ All updates return structured diffs. Mutations accept expected source revisions 
 
 Initial stores:
 
-- Native catalog files.
+- Native TypeScript message modules backed by the TypeScript Compiler API.
 - Drizzle.
 - In-memory test store.
 - Read-only external adapter base class.
 
-## 7. Compiler and Generated Runtime
+## 7. Source Generation and Native Runtime
 
 ### 7.1 Goals
 
-- Typed message keys and parameters.
-- Precompiled message functions with no production parsing.
+- Generate direct typed message functions into the application source tree.
+- Use TypeScript as the canonical persisted format and the application's normal compiler/bundler as the only build compiler.
+- Perform no production catalog parsing or CopyTranslater compilation phase.
 - Message-level tree-shaking.
-- Optional locale and namespace splitting.
-- Deterministic output for build caching.
+- Native locale and namespace splitting through statically analyzable ESM imports.
+- Deterministic TypeScript Compiler API output for build caching and clean Git diffs.
+- Compile-time parameter, missing-translation, and stale-translation diagnostics.
 - Synchronous rendering after locale preload.
 - Request-safe SSR.
-- Development metadata excluded from production.
+- Type-only authoring metadata erased from production output.
 
-### 7.2 Generated layout
+### 7.2 Native source layout
 
 ```text
-i18n/generated/
+i18n/
   runtime.ts
-  registry.ts
+  loaders.ts
   messages/
-    common.ts
-    checkout.ts
-  locales/
     en/
       common.ts
       checkout.ts
@@ -273,19 +326,34 @@ i18n/generated/
       checkout.ts
 ```
 
-Prefer named ESM exports for predictable tree-shaking:
+Message modules expose named functions directly:
 
 ```ts
-import { completePurchase } from "~/i18n/generated/messages/checkout";
+import { completePurchase } from "~/i18n/messages/nl/checkout";
 
 completePurchase();
 ```
 
-### 7.3 Compilation modes
+For runtime-selected locales, generated loaders return a namespace whose function types are derived from the source locale:
 
-#### Bundled
+```ts
+const checkoutLoaders = {
+  en: () => import("./messages/en/checkout"),
+  nl: () => import("./messages/nl/checkout"),
+  de: () => import("./messages/de/checkout"),
+} as const;
 
-Each imported function contains every locale's compiled result. Calls remain synchronous and messages are tree-shakable, but all locales for an imported message ship together.
+const checkout = await checkoutLoaders[locale]();
+checkout.completePurchase();
+```
+
+Framework integrations preload the required locale and namespaces, then expose the loaded typed functions synchronously during rendering.
+
+### 7.3 Generation and splitting modes
+
+#### Direct static imports
+
+Applications that know the locale at build time import locale modules directly. The bundler performs ordinary named-export tree-shaking with no runtime registry.
 
 #### Locale split
 
@@ -302,7 +370,7 @@ await loadTranslations({
 });
 ```
 
-This should become the recommended production mode after the basic compiler is stable.
+Locale-plus-namespace modules are the recommended production layout. Splitting comes from the generated module graph rather than a CopyTranslater-specific compilation mode.
 
 ### 7.4 Dynamic keys
 
@@ -312,16 +380,16 @@ Dynamic dictionary lookup prevents full message-level tree-shaking. Support it o
 
 Implement distinct cache layers:
 
-- **Compiler cache**: fingerprint catalogs and options; regenerate only changed namespaces.
-- **Build cache**: do not rewrite byte-identical generated files.
+- **Generator cache**: fingerprint parsed message ASTs and options; update only changed locale/namespace modules.
+- **Build cache**: do not rewrite byte-identical TypeScript modules.
 - **Browser/CDN cache**: use content-hashed immutable locale chunks.
 - **Formatter cache**: reuse `Intl` formatter instances by locale and options.
-- **Server module cache**: reuse compiled modules while keeping active locale request-scoped.
+- **Server module cache**: reuse application-compiled modules while keeping active locale request-scoped.
 - **Database cache interface**: permit memory, Redis, KV, or application-defined caches with resource/row/field/locale invalidation tags.
 
 ### 7.6 Production stripping
 
-Production output must omit:
+TypeScript erases `SourceRevisions`, `BasedOn`, `Reviewed`, `SourceHistory`, context interfaces, and stale-check aliases. Production output must additionally omit:
 
 - Source history.
 - Review state.
@@ -369,6 +437,8 @@ Target side:
 - Save, save and review, revert, copy source, and acknowledge source change.
 - Preview in the page.
 - Navigate to the next missing or stale message.
+
+Saves update the target function, `BasedOn`, review metadata, and stale assertion through one TypeScript Compiler API operation followed by an atomic file replacement.
 
 Editing a base message must preview the number of translations that will become stale before committing the change.
 
@@ -564,9 +634,10 @@ Initial commands:
 ```text
 i18n init
 i18n dev
-i18n compile
+i18n generate
 i18n extract
 i18n reconcile
+i18n typecheck
 i18n status
 i18n missing
 i18n stale
@@ -590,10 +661,11 @@ Output formats:
 
 ## 13. Validation and QA
 
-Validate at catalog parse time, compile time, overlay save time, MCP mutation time, and CI time.
+Validate when TypeScript message modules are parsed, after source generation, during semantic TypeScript checking, on overlay saves, on MCP mutations, and in CI.
 
 Initial checks:
 
+- Invalid TypeScript syntax or unsupported native message-module shapes.
 - Missing and empty translations.
 - Stale translations.
 - Unreconciled source changes.
@@ -639,7 +711,7 @@ The first end-to-end example must demonstrate:
 
 ## 15. Interoperability
 
-The native format is canonical. Initial adapters should support:
+The native TypeScript module format is canonical. Initial adapters should support:
 
 - Import from and export to Paraglide/inlang.
 - Import from and export to i18next JSON.
@@ -663,7 +735,10 @@ Imports must preserve as much context as the source format exposes and clearly r
 - Canonical message fingerprinting.
 - Revision and stale-status derivation.
 - Source reconciliation.
-- ICU parsing and compilation.
+- TypeScript AST canonicalization and Compiler API source generation.
+- TypeScript parse/update/print round trips for every supported message shape.
+- ICU import parsing and conversion to native message-function ASTs.
+- Type-level stale and missing translation assertions.
 - Locale strategy ordering.
 - URL localization and delocalization.
 - Cache keys and invalidation.
@@ -672,10 +747,10 @@ Imports must preserve as much context as the source format exposes and clearly r
 
 ### Golden tests
 
-- Catalog input to generated ESM output.
-- Deterministic output across repeated builds.
+- Domain input to generated TypeScript module output.
+- Deterministic Compiler API output across repeated generation runs.
 - Import/export fixtures.
-- JSON Schema compatibility.
+- Native module format-version compatibility.
 
 ### Integration tests
 
@@ -683,7 +758,7 @@ Imports must preserve as much context as the source format exposes and clearly r
 - Locale switching and route preservation.
 - Locale/namespace chunk loading.
 - Concurrent SSR requests with different locales.
-- Overlay-to-file update.
+- Overlay-to-TypeScript-AST update.
 - Overlay-to-Drizzle transaction.
 - MCP update with stale expected revision.
 
@@ -694,15 +769,15 @@ Imports must preserve as much context as the source format exposes and clearly r
 - Source diff rendering.
 - SEO and alt-text editing.
 - Text overflow indication.
-- Hot reload after catalog changes.
+- Hot reload after TypeScript message-module changes.
 - Production build contains no overlay or write metadata.
 
 ### Performance tests
 
 - Bundle size per number of imported messages.
-- Bundle growth as unused catalog size increases.
+- Bundle growth as unused message-module size increases.
 - Locale chunk size and cache behavior.
-- Cold and incremental compile time.
+- Cold and incremental source-generation time.
 - Runtime formatter cache effectiveness.
 - Overlay impact in development.
 
@@ -712,23 +787,25 @@ Imports must preserve as much context as the source format exposes and clearly r
 
 - Set up monorepo, TypeScript, test runner, linting, and package builds.
 - Define shared domain types.
-- Publish versioned JSON Schemas locally.
-- Implement canonical formatting and fingerprints.
-- Implement native catalog parsing, writing, and reconciliation.
+- Define and version the native TypeScript module conventions.
+- Implement parsing with `ts.createSourceFile`, generation with `ts.factory`, and deterministic emission with `ts.Printer`.
+- Implement canonical message-AST formatting, semantic fingerprints, and contract fingerprints.
+- Implement source/translation module writing, type-only metadata, reconciliation, and atomic byte-identical-write avoidance.
+- Generate compile-time assertions for stale and missing translations.
 - Add golden fixtures.
 
-Exit criterion: a catalog can be parsed, changed, reconciled, validated, and written deterministically.
+Exit criterion: a native TypeScript namespace can be parsed, changed, reconciled, typechecked, and written deterministically, and changing a source fingerprint makes an outdated translation fail semantic TypeScript checking.
 
-### Milestone 1: Compiler and runtime
+### Milestone 1: Native message functions and runtime
 
-- Compile ICU messages into typed ESM functions.
+- Generate direct typed ESM message functions with no CopyTranslater build-time compilation phase.
 - Implement locale context and fallback.
 - Implement cached `Intl` formatters.
-- Add bundled compilation mode.
+- Add direct static-import mode.
 - Add message-level tree-shaking fixture and bundle-size test.
-- Add source maps and development metadata hooks.
+- Add type-only development metadata and source-location hooks.
 
-Exit criterion: an example application renders typed compiled messages with no runtime catalog parsing.
+Exit criterion: an example application imports and renders generated TypeScript message functions directly, with no runtime catalog parsing and no CopyTranslater compiler in the application build.
 
 ### Milestone 2: Code splitting and TanStack Start
 
@@ -751,7 +828,7 @@ Exit criterion: the example ships only the active locale/route namespaces and ha
 - Add page-level SEO and hidden-content editor.
 - Add hot reload after writes.
 
-Exit criterion: a developer can click visible text or hidden metadata, edit it, save it to the native catalog, and see the page update.
+Exit criterion: a developer can click visible text or hidden metadata, edit it, save it directly into the native TypeScript modules, and see the page update.
 
 ### Milestone 4: Drizzle
 
@@ -779,27 +856,28 @@ Exit criterion: an existing MCP-capable agent can inspect context, find stale tr
 
 - Add Paraglide, i18next, and FormatJS import/export.
 - Add pseudolocales and stronger QA.
-- Add catalog compaction.
+- Add type-only source-history compaction.
 - Perform security review of write paths.
-- Stabilize schemas and migration policy.
-- Produce end-to-end documentation and migration guides.
+- Stabilize native module conventions and migration policy.
+- Produce end-to-end documentation and source-module migration guides.
 
-Exit criterion: a real project can migrate in, run in production, and upgrade catalog versions without data loss.
+Exit criterion: a real project can migrate in, run in production, and upgrade native module format versions without data loss.
 
 ## 18. Versioning and Migration Policy
 
-- Catalog and project files have explicit integer schema versions.
-- JSON Schemas are published and bundled with the CLI.
-- Minor tool updates must preserve the current schema.
-- Schema changes require a deterministic migration command.
-- Migrations produce a preview diff and never silently discard unknown fields.
-- Generated runtime output follows package semantic versioning but is always reproducible from canonical catalogs.
+- Generated message modules contain a machine-readable, type-only `CopyTranslaterFormat` declaration.
+- `i18n.config.ts` is validated through its exported TypeScript API and package types.
+- The generator pins and tests its supported TypeScript Compiler API versions while emitting ordinary stable TypeScript syntax for consumers.
+- Minor tool updates must preserve the current native module conventions.
+- Convention changes require a deterministic TypeScript AST migration command.
+- Migrations produce a preview diff and never silently discard unrecognized declarations.
+- The generator and runtime follow package semantic versioning; native message modules remain ordinary application source and are migrated explicitly when their format version changes.
 
 ## 19. Initial Success Criteria
 
 The first stable release is successful when it can demonstrate all of the following in one TanStack Start application:
 
-1. Typed and precompiled message functions.
+1. Direct typed TypeScript message functions with no CopyTranslater application-build compilation phase.
 2. Message-level tree-shaking.
 3. Locale and namespace code splitting.
 4. Immutable-cacheable locale chunks.
@@ -815,13 +893,15 @@ The first stable release is successful when it can demonstrate all of the follow
 
 ## 20. Decisions Already Made
 
-- Use a native CopyTranslater storage format.
+- Use generated TypeScript modules as the canonical native storage format and application runtime source.
+- Use the TypeScript Compiler API directly (`ts.createSourceFile`, `ts.factory`, and `ts.Printer`) for parsing, updates, and deterministic generation.
+- Do not use JSON catalogs, SQLite catalogs, `ts-morph`, Babel, or a CopyTranslater compilation layer in the application build.
 - Keep Paraglide as inspiration and an interoperability target, not the canonical store.
-- Use a message-centric catalog organized into namespace files.
-- Track base revisions, fingerprints, source history, translation source revisions, and reviews.
+- Organize native message functions into locale and namespace TypeScript modules.
+- Track source fingerprints, type-only source history, translation `BasedOn` fingerprints, reviews, and compile-time staleness assertions.
 - Always show the original alongside the editable target in the overlay.
 - Support SEO, alt text, accessibility text, routes, and Drizzle content as first-class localized data.
-- Generate typed, tree-shakable, code-splittable, cacheable ESM functions.
+- Generate direct typed, tree-shakable, code-splittable, cacheable ESM functions and statically analyzable loaders.
 - Use TanStack Start as the first reference integration.
 - Keep MCP passive and rely on the user's existing agent to initiate tool calls.
 - Keep database access explicitly mapped and allowlisted.
