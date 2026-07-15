@@ -1,4 +1,4 @@
-import { createContext, createElement, useContext, useEffect, useRef, type HTMLAttributes, type ReactElement, type ReactNode } from "react";
+import { createContext, createElement, useContext, useEffect, useRef, type AllHTMLAttributes, type ReactElement, type ReactNode } from "react";
 import { registerVisibleMessage } from "./instrumentation.js";
 import type { VisibleMessageRegistration } from "./types.js";
 
@@ -12,10 +12,10 @@ export function CopyTranslaterProvider(props: { enabled: boolean; children: Reac
   return <Context.Provider value={{ enabled: props.enabled }}>{props.children}</Context.Provider>;
 }
 
-export interface LocalizedProps extends Omit<HTMLAttributes<HTMLElement>, "children"> {
+export interface LocalizedProps extends Omit<AllHTMLAttributes<HTMLElement>, "children"> {
   as?: keyof React.JSX.IntrinsicElements;
   children: ReactNode;
-  message?: VisibleMessageRegistration;
+  message?: VisibleMessageRegistration | undefined;
 }
 
 export function Localized({ as = "span", children, message, ...attributes }: LocalizedProps): ReactElement {

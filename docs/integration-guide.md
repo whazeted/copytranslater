@@ -1,6 +1,6 @@
 # TanStack Start integration
 
-Register request middleware in `src/start.ts`. Each request gets an isolated locale and namespace cache; server requests do not use browser-global locale state.
+Register request middleware in `src/start.ts`. Each request gets isolated locale resolution and a namespace cache.
 
 ```ts
 import { createStart } from "@tanstack/react-start";
@@ -16,7 +16,24 @@ const i18n = createCopyTranslaterMiddleware({
 export const startInstance = createStart(() => ({ requestMiddleware: [i18n] }));
 ```
 
-Preload route namespaces in loaders and pass their serialized state into hydration. Use the package link and redirect helpers so locale prefixes, query strings, and fragments are preserved. Asset, API, RPC, and framework-internal routes are excluded from locale rewriting.
+Read the middleware context inside a server function, create a request-local namespace cache, and return its serialized preload state from the route loader:
+
+```ts
+const getRouteData = createServerFn({ method: "GET" }).handler(async ({ context }) => {
+  const locale = context.copytranslater.locale;
+  const request = createI18nRequest({ locale, load: loadMessages });
+  const hydration = await preloadRouteNamespaces(request, ["checkout"]);
+  const messages = await request.get("checkout");
+  return { locale, hydration, title: messages.title() };
+});
+
+export const Route = createFileRoute("/{-$locale}")({
+  loader: () => getRouteData(),
+  component: Page,
+});
+```
+
+On the client, `hydrateI18nState` loads each serialized namespace once and seeds the request cache before the first message read. Use `localizeHref` or the package redirect helper so locale prefixes, query strings, and fragments are preserved. Asset, API, RPC, and framework-internal routes are excluded from locale rewriting. The runnable example contains the complete SSR and hydration flow.
 
 For in-context development editing, add the Vite bridge:
 

@@ -13,7 +13,7 @@ npm run build
 npm run example
 ```
 
-The example is served by Vite and demonstrates direct named imports, runtime locale/namespace loading, locale-preserving URLs, visible-message inspection, source/target editing, review, source-staleness previews, and hot reload. Run it in development and choose **Inspect messages**.
+The example is a TanStack Start application that demonstrates localized SSR, request middleware, route namespace preload and hydration, locale-preserving URLs, visible-message inspection, source/target editing, review, source-staleness previews, and hot reload. Run it in development and choose **Inspect messages**.
 
 ## Start a project
 
@@ -44,7 +44,7 @@ Arbitrary calls, property access, statements, control flow, side effects, spread
 - `packages/runtime`: plural/select helpers, cached `Intl` formatters, locale state, and cached namespace loaders.
 - `packages/tanstack-start`: request middleware, routing/preload helpers, React instrumentation, overlay, and Vite bridge.
 - `packages/mcp`: passive stdio MCP server with seven composable project tools.
-- `examples/tanstack-start-basic`: browser example for native messages and the development editing workflow.
+- `examples/tanstack-start-basic`: TanStack Start SSR example for native messages and the development editing workflow.
 
 The test suite covers grammar acceptance/rejection, semantic and contract fingerprints, atomic write avoidance, state derivation, optimistic concurrency, compile-time `satisfies` contracts, request isolation, locale routing, hydration reuse, overlay interaction, guarded bridge writes, static-import tree-shaking, dynamic locale chunking, and production authoring-code removal.
 
@@ -58,7 +58,7 @@ The test suite covers grammar acceptance/rejection, semantic and contract finger
 
 ## TanStack Start integration
 
-Register the request middleware in `src/start.ts` and preload namespaces from route loaders. Each request owns its locale and namespace cache; no server request uses the runtime's browser-global locale state.
+Register the request middleware in `src/start.ts` and preload namespaces from route loaders. Each request owns its locale resolution and namespace cache, and message functions render synchronously inside that request's selected locale.
 
 ```ts
 import { createStart } from "@tanstack/react-start";

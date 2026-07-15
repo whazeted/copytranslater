@@ -28,4 +28,4 @@ i18n export --format icu --locale nl --namespace common --output nl-common.json
 i18n import --format icu --locale nl --namespace common --input nl-common.json
 ```
 
-Start the example with `npm run example`, open the shown URL, and choose **Inspect messages** for visible-text editing. For an agent integration, continue with the [MCP setup guide](./mcp-setup.md). Production applications import only runtime and framework packages; the overlay, write bridge, CLI, and MCP package are development dependencies.
+Start the TanStack Start example with `npm run example`, open the shown URL, and visit `/nl` or `/de` to see locale middleware, namespace preload, and localized SSR. Choose **Inspect messages** for visible-text editing. For an agent integration, continue with the [MCP setup guide](./mcp-setup.md). Production applications import only runtime and framework packages; the overlay, write bridge, CLI, and MCP package are development dependencies.
