@@ -38,10 +38,10 @@ The deterministic toolchain remains fully useful without an agent. MCP adds auto
 - URL-prefix locale routing with cookie, `Accept-Language`, and base-locale fallback.
 - TanStack Start SSR, hydration, links, Vite development bridge, and a visible-text overlay.
 - Passive MCP inspection and guarded single-message updates.
-- JSON and ICU-compatible import/export through the CLI.
 
 ### Explicit version 1 non-goals
 
+- JSON and ICU-compatible import/export through the CLI.
 - Hosted translation management, billing, identity management, or a marketplace.
 - Autonomous or background MCP work.
 - Arbitrary filesystem, shell, SQL, or database access.
