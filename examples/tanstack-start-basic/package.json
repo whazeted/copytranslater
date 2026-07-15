@@ -1,0 +1,14 @@
+{
+  "name": "@copytranslater/example-tanstack-start-basic",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "vite build --config vite.config.ts",
+    "dev": "vite --config vite.config.ts"
+  },
+  "dependencies": {
+    "@copytranslater/runtime": "0.1.0",
+    "copytranslater": "0.1.0"
+  }
+}

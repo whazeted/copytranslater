@@ -1,0 +1,27 @@
+{
+  "name": "copytranslater-workspace",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "examples/*"
+  ],
+  "scripts": {
+    "build": "tsc -b && npm run build -w examples/tanstack-start-basic",
+    "check": "tsc -b && vitest run",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "example": "vite --config examples/tanstack-start-basic/vite.config.ts",
+    "i18n": "node packages/copytranslater/dist/cli.js"
+  },
+  "engines": {
+    "node": ">=20.19"
+  },
+  "devDependencies": {
+    "@types/node": "26.1.1",
+    "typescript": "6.0.3",
+    "vite": "8.1.4",
+    "vitest": "4.1.10"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist-types",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "types": ["vite/client"]
+  },
+  "references": [
+    { "path": "../../packages/runtime" },
+    { "path": "../../packages/copytranslater" }
+  ],
+  "include": ["**/*.ts"]
+}

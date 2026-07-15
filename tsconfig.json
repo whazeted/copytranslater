@@ -1,0 +1,10 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/runtime" },
+    { "path": "./packages/copytranslater" },
+    { "path": "./packages/tanstack-start" },
+    { "path": "./packages/mcp" },
+    { "path": "./examples/tanstack-start-basic" }
+  ]
+}
